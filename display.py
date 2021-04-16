@@ -1,7 +1,7 @@
 import re
 import json
 from tkinter import *
-import datetime
+from datetime import datetime
 import paho.mqtt.client as mqtt
 
 #------------------ Constants ------------------
@@ -14,10 +14,12 @@ GPS_TOPIC                      = "local/sensor/gps"
 RFID_TOPIC                     = "local/sensor/rfid"
 FR_TOPIC                       = "local/sensor/face_recognize"
 
-person1 = {"id" : 1234, "name" : "LongHD", "type" : "student" }
-person2 = {"id" : 1235, "name" : "DuongHV", "type" : "student" }
-person3 = {"id" : 1236, "name" : "TuongPV", "type" : "teacher" }
-person4 = {"id" : 1237, "name" : "ThangDH", "type" : "teacher" }
+COLOR_RED                      = "#FF0000"
+
+person1 = {"id" : 1234, "name" : "LongHD", "type" : "student", "last_s" : 2500, "last_t": 14400 }
+person2 = {"id" : 1235, "name" : "DuongHV", "type" : "student", "last_s" : 3500, "last_t": 18000 }
+person3 = {"id" : 1236, "name" : "TuongPV", "type" : "teacher", "last_s" : 0, "last_t": 0 }
+person4 = {"id" : 1237, "name" : "ThangDH", "type" : "teacher", "last_s" : 0, "last_t": 0 }
 
 personList = [person1, person2, person3, person4]
 
@@ -30,10 +32,10 @@ class Display(Frame):
         self.parent = parent
         self.teacherId = -1
         self.studentId = -1
-        self.teacherStart = 0
+        self.teacherStart = datetime.now()
         self.teacherTime = 0
         self.teacherDistance = 0
-        self.studentStart = 0
+        self.studentStart = datetime.now()
         self.studentTime = 0
         self.studentDistance = 0
         self.initUI()
@@ -45,11 +47,11 @@ class Display(Frame):
         self.currentTimeLabel.place(x = 480, y = 10, anchor="center")
 
         # Teacher
-        self.teacherNameLabel = Label(self.parent, text = "Giảng viên: ", font=(TEXT_FONT, TEXT_LARGE_SIZE))
+        self.teacherNameLabel = Label(self.parent, text = "Giảng viên: ", font=(TEXT_FONT, TEXT_LARGE_SIZE))         # Teacher name
         self.teacherNameLabel.place(x = 40, y = 40)
-        self.teacherStartLabel = Label(self.parent, text = "Thời gian bắt đầu: ", font=(TEXT_FONT, TEXT_SMALL_SIZE))
+        self.teacherStartLabel = Label(self.parent, text = "Thời gian bắt đầu: ", font=(TEXT_FONT, TEXT_SMALL_SIZE)) # Time checkin
         self.teacherStartLabel.place(x = 40, y = 100)
-        self.teacherTimeLabel = Label(self.parent, text = "Tổng thời gian: ", font=(TEXT_FONT, TEXT_SMALL_SIZE))
+        self.teacherTimeLabel = Label(self.parent, text = "Tổng thời gian: ", font=(TEXT_FONT, TEXT_SMALL_SIZE))     # Time run
         self.teacherTimeLabel.place(x = 520, y = 100)
         self.teacherDistanceLabel = Label(self.parent, text = "Quãng đường hiện tại: ", font=(TEXT_FONT, TEXT_SMALL_SIZE))
         self.teacherDistanceLabel.place(x = 40, y = 140)
@@ -70,9 +72,14 @@ class Display(Frame):
 
         # Location
         self.latitudeLabel = Label(window, text = "Vĩ độ: ", font=(TEXT_FONT, TEXT_SMALL_SIZE))
-        self.latitudeLabel.place(x = 340, y = 480, anchor="center")
+        self.latitudeLabel.place(x = 340, y = 460, anchor="center")
         self.longitudeLabel = Label(window, text = "Kinh độ: ", font=(TEXT_FONT, TEXT_SMALL_SIZE))
-        self.longitudeLabel.place(x = 620, y = 480, anchor="center")
+        self.longitudeLabel.place(x = 620, y = 460, anchor="center")
+
+        # Notify
+        self.notifyLabel = Label(window, text = "", font=(TEXT_FONT, TEXT_SMALL_SIZE))
+        self.notifyLabel.place(x = 480, y = 500, anchor="center")
+        self.notifyLabel.configure(fg=COLOR_RED)
 
         # Update current time
         self.updateTime()
@@ -80,10 +87,19 @@ class Display(Frame):
 
     # Update current time
     def updateTime(self):
-        now = datetime.datetime.now().strftime("%m/%d/%Y, %H:%M:%S") # Get current time
+        now = datetime.now().strftime("%m/%d/%Y, %H:%M:%S") # Get current time
         self.currentTimeLabel.configure(text = now) # Show current time
         self.parent.after(1000, self.updateTime) # Call function after 1s
 
+        if self.teacherId > 0:
+            time = datetime.now() - self.teacherStart
+            self.setTeacherTime(str(time))
+
+        if self.studentId > 0:
+            time = datetime.now() - self.studentStart
+            self.setStudentTime(str(time))
+
+    
     # Teacher
     def setTeacherName(self, name):
         self.teacherNameLabel.configure(text = "Giảng viên: " + name)
@@ -120,6 +136,10 @@ class Display(Frame):
     def setLocation(self, lat, lng):
         self.latitudeLabel.configure(text = "Vĩ độ: " + lat)
         self.longitudeLabel.configure(text = "Kinh độ: " + lng)
+
+    # Notify
+    def setNotify(self, notify):
+        self.notifyLabel.configure(text = notify)
         
 #------------------ Parsing ------------------
 
@@ -131,7 +151,14 @@ def parsingPacket(topic, packet):
             gps = json.loads(packet)
             if(gps["command"] == "update"):
                 display.setLocation(str(gps["latitude"]), str(gps["longitude"]))
-                print(gps["distance"])
+                # Update distance
+                if display.teacherId > 0:
+                    display.teacherDistance += gps["distance"]
+                    display.setTeacherDistance(str(display.teacherDistance))
+                if display.studentId > 0:
+                    display.studentDistance += gps["distance"]
+                    display.setStudentDistance(str(display.studentDistance))
+
 
         # Handle RFID result
         elif topic == RFID_TOPIC:
@@ -140,12 +167,30 @@ def parsingPacket(topic, packet):
                 manageCheckInOut(rfid["card_id"])
         
         # Face recognition result
-
+        
 
     except:
         print("error packet == " + packet)
 
 #------------------ Check in/ out ------------------
+
+def clearTeacherInfo():
+    display.teacherId = -1
+    display.teacherStart = datetime.now()
+    display.teacherDistance = 0
+    display.setTeacherName("")
+    display.setTeacherStart("")
+    display.setTeacherTime("")
+    display.setTeacherDistance("")
+
+def clearStudentInfo():
+    display.studentId = -1
+    display.studentStart = datetime.now()
+    display.studentDistance = 0
+    display.setStudentName("")
+    display.setStudentStart("")
+    display.setStudentTime("")
+    display.setStudentDistance("")
 
 def manageCheckInOut(card_id):
     for person in personList:
@@ -153,14 +198,42 @@ def manageCheckInOut(card_id):
             if person["type"] == "teacher":
                 # New or change teacher
                 if display.teacherId != card_id:
+                    display.teacherId = card_id
+                    display.teacherStart = datetime.now()
+                    display.teacherDistance = 0
                     display.setTeacherName(person["name"])
+                    display.setTeacherStart(display.teacherStart.strftime("%m/%d/%Y, %H:%M:%S"))
+                    display.setTeacherTime("00:00:00")
+                    display.setTeacherDistance("0")
 
+                # Teacher checkout
+                else:
+                    clearTeacherInfo()
+                    clearStudentInfo()
 
 
             if person["type"] == "student":
-                # New or change student
+                # Teacher is checkout
                 if display.teacherId != -1:
-                    display.setStudentStart(person["name"])
+                    # New or change student
+                    if display.studentId != card_id:
+                        display.studentId = card_id
+                        display.studentStart = datetime.now()
+                        display.studentDistance = 0
+                        display.setStudentName(person["name"])
+                        display.setStudentStart(display.studentStart.strftime("%m/%d/%Y, %H:%M:%S"))
+                        display.setStudentTime("00:00:00")
+                        display.setStudentDistance("0")
+                        display.setStudentLastDistance(str(person["last_s"]))
+                        display.setStudentLastTime(str(person["last_t"]))
+                    
+                    # Student checkout
+                    else:
+                        clearStudentInfo()
+
+                # Need a teacher before
+                else:
+                    display.setNotify("Need a teacher before")
 
 #------------------ MQTT ------------------
 
