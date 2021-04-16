@@ -1,7 +1,7 @@
 import re
 import json
 from tkinter import *
-from datetime import datetime
+from datetime import datetime, timedelta
 import paho.mqtt.client as mqtt
 
 #------------------ Constants ------------------
@@ -16,10 +16,10 @@ FR_TOPIC                       = "local/sensor/face_recognize"
 
 COLOR_RED                      = "#FF0000"
 
-person1 = {"id" : 1234, "name" : "LongHD", "type" : "student", "last_s" : 2500, "last_t": 14400 }
-person2 = {"id" : 1235, "name" : "DuongHV", "type" : "student", "last_s" : 3500, "last_t": 18000 }
-person3 = {"id" : 1236, "name" : "TuongPV", "type" : "teacher", "last_s" : 0, "last_t": 0 }
-person4 = {"id" : 1237, "name" : "ThangDH", "type" : "teacher", "last_s" : 0, "last_t": 0 }
+person1 = {"id" : 1234, "name" : "LongHD", "type" : "student", "last_s" : 2500, "last_t": timedelta(seconds = 14400) }
+person2 = {"id" : 1235, "name" : "DuongHV", "type" : "student", "last_s" : 3500, "last_t": timedelta(seconds = 18000) }
+person3 = {"id" : 1236, "name" : "TuongPV", "type" : "teacher", "last_s" : 0, "last_t": timedelta(seconds = 0) }
+person4 = {"id" : 1237, "name" : "ThangDH", "type" : "teacher", "last_s" : 0, "last_t": timedelta(seconds = 0) }
 
 personList = [person1, person2, person3, person4]
 
@@ -38,6 +38,8 @@ class Display(Frame):
         self.studentStart = datetime.now()
         self.studentTime = 0
         self.studentDistance = 0
+        self.studentLastTime = 0
+        self.studentLastDistance = 0
         self.initUI()
 
     # UI Initialization
@@ -97,7 +99,9 @@ class Display(Frame):
 
         if self.studentId > 0:
             time = datetime.now() - self.studentStart
+            display.studentLastTime += time
             self.setStudentTime(str(time))
+            self.setStudentLastTime(str(display.studentLastTime))
 
     
     # Teacher
@@ -157,8 +161,10 @@ def parsingPacket(topic, packet):
                     display.setTeacherDistance(str(display.teacherDistance))
                 if display.studentId > 0:
                     display.studentDistance += gps["distance"]
+                    display.studentLastDistance += display.studentDistance
+                    # Display
                     display.setStudentDistance(str(display.studentDistance))
-
+                    display.setStudentLastDistance(str(display.studentLastDistance))
 
         # Handle RFID result
         elif topic == RFID_TOPIC:
@@ -167,7 +173,7 @@ def parsingPacket(topic, packet):
                 manageCheckInOut(rfid["card_id"])
         
         # Face recognition result
-        
+
 
     except:
         print("error packet == " + packet)
@@ -191,6 +197,8 @@ def clearStudentInfo():
     display.setStudentStart("")
     display.setStudentTime("")
     display.setStudentDistance("")
+    display.setStudentLastDistance("")
+    display.setStudentLastTime("")
 
 def manageCheckInOut(card_id):
     for person in personList:
@@ -205,6 +213,7 @@ def manageCheckInOut(card_id):
                     display.setTeacherStart(display.teacherStart.strftime("%m/%d/%Y, %H:%M:%S"))
                     display.setTeacherTime("00:00:00")
                     display.setTeacherDistance("0")
+                    display.setNotify("")
 
                 # Teacher checkout
                 else:
@@ -224,8 +233,11 @@ def manageCheckInOut(card_id):
                         display.setStudentStart(display.studentStart.strftime("%m/%d/%Y, %H:%M:%S"))
                         display.setStudentTime("00:00:00")
                         display.setStudentDistance("0")
+                        display.studentLastTime = person["last_t"]
+                        display.studentLastDistance = person["last_s"]
                         display.setStudentLastDistance(str(person["last_s"]))
                         display.setStudentLastTime(str(person["last_t"]))
+                        display.setNotify("")
                     
                     # Student checkout
                     else:
