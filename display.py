@@ -1,10 +1,28 @@
+#!/usr/bin/python3
+
 import re
+import cv2
 import json
-from tkinter import *
-from datetime import datetime, timedelta
+import PIL.Image
+import PIL.ImageTk
 import paho.mqtt.client as mqtt
 
+from tkinter import *
+from datetime import datetime, timedelta
+
+FACE_OK_COLOR = (0, 255, 0)
+FACE_ERROR_COLOR = (255, 0, 0)
+
 #------------------ Constants ------------------
+
+DISPLAY_SIZE                   = "1024x600"
+IMAGE_WIDTH                    = 440
+IMAGE_HEIGHT                   = 440
+IMAGE_X                        = 480
+IMAGE_Y                        = 70
+
+X_START                        = 20
+X_CENTER                       = 512
 
 TEXT_SMALL_SIZE                = 12
 TEXT_LARGE_SIZE                = 16
@@ -23,10 +41,35 @@ person4 = {"id" : 1237, "name" : "ThangDH", "type" : "teacher", "last_s" : 0, "l
 
 personList = [person1, person2, person3, person4]
 
+#--------------Get frame from camera----------
+
+class CameraCapture:
+    def __init__(self, camera_source=0):
+        # Open the camera source
+        self.vid = cv2.VideoCapture(camera_source)
+        if not self.vid.isOpened():
+            raise ValueError("Unable to open camera", camera_source)
+
+    def get_frame(self):
+        if self.vid.isOpened():
+            ret, frame = self.vid.read()
+            cv2.resize(frame, (IMAGE_WIDTH, IMAGE_HEIGHT))
+            if ret:
+                return (ret, cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+            else:
+                return (ret, None)
+        else:
+            return (ret, None)
+
+    # Release the video source when the object is destroyed
+    def __del__(self):
+        if self.vid.isOpened():
+            self.vid.release()
+
 #------------------ Display ------------------
 
 class Display(Frame):
-    def __init__(self, parent):
+    def __init__(self, parent, camera_source=0):
         Frame.__init__(self, parent)
 
         self.parent = parent
@@ -42,45 +85,85 @@ class Display(Frame):
         self.studentLastDistance = 0
         self.initUI()
 
+        # For face detection
+        self.faceRecs = []
+        self.faceCount = 0
+
+        self.camera_source = camera_source
+        # open camera source
+        self.vid = CameraCapture(camera_source)
+        # Create a canvas that can fit the above video source size
+        # self.canvas = Canvas(parent, width = self.vid.width, height = self.vid.height)
+        self.canvas = Canvas(parent, width = IMAGE_WIDTH, height = IMAGE_HEIGHT)
+        self.canvas.place(x = IMAGE_X, y = IMAGE_Y)
+        # self.canvas.pack()
+        
+        self.delay = 15
+        self.update()
+
+    def update(self):
+        # Get a frame from the video source
+        ret, frame = self.vid.get_frame()
+        if len(self.faceRecs):
+            for faceRec in self.faceRecs:
+                x1 = faceRec["x1"]
+                y1 = faceRec["y1"]
+                x2 = faceRec["x2"]
+                y2 = faceRec["y2"]
+                if faceRec["id"] == self.studentId:
+                    cv2.rectangle(frame, (x1, y1), (x2, y2), FACE_OK_COLOR, 1)
+                else:
+                    cv2.rectangle(frame, (x1, y1), (x2, y2), FACE_ERROR_COLOR, 1)
+            # Clear list after delay
+            self.faceCount += 1
+            if(self.faceCount > 5):
+                self.faceRecs.clear()
+
+        if ret:
+            self.photo = PIL.ImageTk.PhotoImage(image = PIL.Image.fromarray(frame))
+            self.canvas.create_image(0, 0, image = self.photo, anchor = NW)
+
+        self.parent.after(self.delay, self.update)
+
     # UI Initialization
     def initUI(self):
         # Current time
         self.currentTimeLabel = Label(window, text = "", font=(TEXT_FONT, TEXT_SMALL_SIZE))
-        self.currentTimeLabel.place(x = 480, y = 10, anchor="center")
+        self.currentTimeLabel.place(x = X_CENTER, y = 10, anchor="center")
 
         # Teacher
         self.teacherNameLabel = Label(self.parent, text = "Giảng viên: ", font=(TEXT_FONT, TEXT_LARGE_SIZE))         # Teacher name
-        self.teacherNameLabel.place(x = 40, y = 40)
+        self.teacherNameLabel.place(x = X_START, y = 40)
         self.teacherStartLabel = Label(self.parent, text = "Thời gian bắt đầu: ", font=(TEXT_FONT, TEXT_SMALL_SIZE)) # Time checkin
-        self.teacherStartLabel.place(x = 40, y = 100)
+        self.teacherStartLabel.place(x = X_START, y = 100)
         self.teacherTimeLabel = Label(self.parent, text = "Tổng thời gian: ", font=(TEXT_FONT, TEXT_SMALL_SIZE))     # Time run
-        self.teacherTimeLabel.place(x = 520, y = 100)
+        self.teacherTimeLabel.place(x = X_START, y = 130)
         self.teacherDistanceLabel = Label(self.parent, text = "Quãng đường hiện tại: ", font=(TEXT_FONT, TEXT_SMALL_SIZE))
-        self.teacherDistanceLabel.place(x = 40, y = 140)
+        self.teacherDistanceLabel.place(x = X_START, y = 160)
 
         # Student
         self.studentNameLabel = Label(self.parent, text = "Học viên: ", font=(TEXT_FONT, TEXT_LARGE_SIZE))
-        self.studentNameLabel.place(x = 40, y = 200)
+        self.studentNameLabel.place(x = X_START, y = 220)
         self.studentStartLabel = Label(self.parent, text = "Thời gian bắt đầu: ", font=(TEXT_FONT, TEXT_SMALL_SIZE))
-        self.studentStartLabel.place(x = 40, y = 260)
+        self.studentStartLabel.place(x = X_START, y = 250)
         self.studentTimeLabel = Label(self.parent, text = "Tổng thời gian: ", font=(TEXT_FONT, TEXT_SMALL_SIZE))
-        self.studentTimeLabel.place(x = 520, y = 260)
+        self.studentTimeLabel.place(x = X_START, y = 280)
         self.studentDistanceLabel = Label(self.parent, text = "Quãng đường hiện tại: ", font=(TEXT_FONT, TEXT_SMALL_SIZE))
-        self.studentDistanceLabel.place(x = 40, y = 300)
+        self.studentDistanceLabel.place(x = X_START, y = 310)
         self.studentLastDistanceLabel = Label(self.parent, text = "Quãng đường đã học: ", font=(TEXT_FONT, TEXT_SMALL_SIZE))
-        self.studentLastDistanceLabel.place(x = 40, y = 340)
+        self.studentLastDistanceLabel.place(x = X_START, y = 340)
         self.studentLastTimeLabel = Label(self.parent, text = "Thời gian đã học: ", font=(TEXT_FONT, TEXT_SMALL_SIZE))
-        self.studentLastTimeLabel.place(x = 40, y = 380)
+        self.studentLastTimeLabel.place(x = X_START, y = 370)
 
         # Location
         self.latitudeLabel = Label(window, text = "Vĩ độ: ", font=(TEXT_FONT, TEXT_SMALL_SIZE))
-        self.latitudeLabel.place(x = 340, y = 460, anchor="center")
+        self.latitudeLabel.place(x = X_START, y = 460)
         self.longitudeLabel = Label(window, text = "Kinh độ: ", font=(TEXT_FONT, TEXT_SMALL_SIZE))
-        self.longitudeLabel.place(x = 620, y = 460, anchor="center")
+        self.longitudeLabel.place(x = X_START, y = 490)
 
         # Notify
         self.notifyLabel = Label(window, text = "", font=(TEXT_FONT, TEXT_SMALL_SIZE))
-        self.notifyLabel.place(x = 480, y = 500, anchor="center")
+        self.notifyLabel.place(x = X_CENTER, y = 560, anchor="center")
         self.notifyLabel.configure(fg=COLOR_RED)
 
         # Update current time
@@ -173,7 +256,10 @@ def parsingPacket(topic, packet):
                 manageCheckInOut(rfid["card_id"])
         
         # Face recognition result
-
+        elif topic == FR_TOPIC:
+            f_r = json.loads(packet)
+            display.faceRecs = f_r["face_list"]
+            
 
     except:
         print("error packet == " + packet)
@@ -279,11 +365,60 @@ def mqttInit():
 
 window = Tk()
 window.title("Đào tạo lái xe")
-window.geometry("960x540") # Set the geometry attribute to change the root windows size
+window.geometry(DISPLAY_SIZE) # Set the geometry attribute to change the root windows size
 window.resizable(0, 0) # Don't allow resizing in the x or y direction
 
 #------------------ Run ------------------
 mqttInit()
-display = Display(window)
+display = Display(window, camera_source=0)
 window.mainloop()
 
+
+
+#------------------------------------ Command ------------------------------------
+"""
+topic: local/sensor/face_recognize
+{
+"command": "update",
+"face_list": [
+    {
+        "id": 1,
+        "x1": 20,
+        "y1": 20,
+        "x2": 40,
+        "y2": 40
+        },
+        {
+        "id": 2,
+        "x1": 100,
+        "y1": 100,
+        "x2": 200,
+        "y2": 200
+        }
+    ]
+}
+
+topic: local/sensor/gps
+{
+  "command":"update",
+  "latitude":21.039755217646018, 
+  "longitude":105.74732532739786,
+  "distance":2.0123
+}
+
+topic: local/sensor/rfid
+{
+    "command":"update",
+    "card_id": 123569874
+}
+
+topic: local/sensor/face_recognize
+{
+    "command": "update",
+    "person_id": 1,
+    "top": 0,
+    "bottom": 180,
+    "left": 0,
+    "right": 180
+}
+"""
