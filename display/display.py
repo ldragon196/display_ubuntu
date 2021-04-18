@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 
-from tkinter import Tk, Frame, Label
+from tkinter import Tk, Frame, Label, Canvas
+from PIL import ImageTk, Image
 
 #------------------ Constants ------------------
 
@@ -13,6 +14,8 @@ X0                             = 20
 X1                             = 220
 X2                             = 500
 X3                             = 600
+
+IMAGE_SIZE                     = 100
 
 #------------------ Display ------------------
 
@@ -35,7 +38,7 @@ class Display:
         # Current time
         self.currentTimeLabel = Label(self.parent, text = "", font = (TEXT_FONT, TEXT_SMALL_SIZE))
         self.currentTimeLabel.place(x = self.width / 2, y = 20, anchor = "center")
-
+        
         # Teacher
         Label(self.parent, text = "Giảng viên: ", font = (TEXT_FONT, TEXT_LARGE_SIZE)).place(x = X0, y = 60)
         self.teacherNameLabel = Label(self.parent, text = "", font = (TEXT_FONT, TEXT_LARGE_SIZE))
@@ -87,6 +90,19 @@ class Display:
         self.longitudeLabel = Label(self.parent, text = "", font = (TEXT_FONT, TEXT_SMALL_SIZE))
         self.longitudeLabel.place(x = X3, y = 400)
 
+        # Image
+        image = Image.open("./image/default.png").resize((IMAGE_SIZE, IMAGE_SIZE))
+        render = ImageTk.PhotoImage(image)
+        self.teacherImage = Label(self.parent, image = render)
+        self.teacherImage.image = render
+        self.teacherImage.place(x = X2, y = 60)
+
+        image = Image.open("./image/default.png").resize((IMAGE_SIZE, IMAGE_SIZE))
+        render = ImageTk.PhotoImage(image)
+        self.studentImage = Label(self.parent, image = render)
+        self.studentImage.image = render
+        self.studentImage.place(x = X2, y = 220)
+
     # Update current time
     def setCurrentTIme(self, time):
         self.currentTimeLabel.configure(text = time)
@@ -127,3 +143,16 @@ class Display:
     def setLocation(self, lat, lng):
         self.latitudeLabel.configure(text = lat)
         self.longitudeLabel.configure(text = lng)
+
+    # Image
+    def setTeacherImage(self, path):
+        image = Image.open(path).resize((IMAGE_SIZE, IMAGE_SIZE))
+        render = ImageTk.PhotoImage(image)
+        self.teacherImage.configure(image = render)
+        self.teacherImage.image = render
+
+    def setStudentImage(self, path):
+        image = Image.open(path).resize((IMAGE_SIZE, IMAGE_SIZE))
+        render = ImageTk.PhotoImage(image)
+        self.studentImage.configure(image = render)
+        self.studentImage.image = render
