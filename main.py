@@ -9,8 +9,8 @@ from mqtt.mqtt import MqttClient
 
 #------------------ Constants ------------------
 
-SCREEN_WIDTH                   = 800
-SCREEN_HEIGHT                  = 450
+SCREEN_WIDTH                   = 1024
+SCREEN_HEIGHT                  = 600
 
 # Topic
 GPS_TOPIC                      = "local/sensor/gps"
