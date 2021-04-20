@@ -28,3 +28,7 @@ class MqttClient:
     def on_message(self, client, userdata, msg):
         # print("topic == " + msg.topic + " message == " + msg.payload.decode("utf-8"))
         self.callback(msg.topic, msg.payload.decode("utf-8"))
+
+    # Publish
+    def publish(self, topic, message):
+        self.mqttClient.publish(topic, message)

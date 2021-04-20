@@ -1,15 +1,14 @@
 #!/usr/bin/python3
 
+import os
 from tkinter import Tk, Frame, Label, Canvas
 from PIL import ImageTk, Image
-
-from camera.camera import CameraCapture
 
 #------------------ Constants ------------------
 
 # Text font
 TEXT_SMALL_SIZE                = 12
-TEXT_LARGE_SIZE                = 14
+TEXT_LARGE_SIZE                = 15
 TEXT_FONT                      = "Arial"
 
 X0                             = 40
@@ -31,7 +30,6 @@ class Display:
 
         self.width = width
         self.height = height
-        self.cameraVideo = CameraCapture()
         self.initUI()
     
     def mainloop(self):
@@ -77,35 +75,34 @@ class Display:
         self.studentDistanceLabel = Label(self.parent, text = "", font = (TEXT_FONT, TEXT_SMALL_SIZE))
         self.studentDistanceLabel.place(x = X1, y = 340)
 
-        Label(self.parent, text = "Quãng đường đã học: ", font = (TEXT_FONT, TEXT_SMALL_SIZE)).place(x = X0, y = 380)
+        Label(self.parent, text = "Quãng đường đã học: ", font = (TEXT_FONT, TEXT_SMALL_SIZE)).place(x = X0, y = 400)
         self.studentLastDistanceLabel = Label(self.parent, text = "", font = (TEXT_FONT, TEXT_SMALL_SIZE))
-        self.studentLastDistanceLabel.place(x = X1, y = 380)
+        self.studentLastDistanceLabel.place(x = X1, y = 400)
 
-        Label(self.parent, text = "Thời gian đã học: ", font = (TEXT_FONT, TEXT_SMALL_SIZE)).place(x = X0, y = 410)
+        Label(self.parent, text = "Thời gian đã học: ", font = (TEXT_FONT, TEXT_SMALL_SIZE)).place(x = X0, y = 430)
         self.studentLastTimeLabel = Label(self.parent, text = "", font = (TEXT_FONT, TEXT_SMALL_SIZE))
-        self.studentLastTimeLabel.place(x = X1, y = 410)
+        self.studentLastTimeLabel.place(x = X1, y = 430)
 
         # Location
         self.latitudeLabel = Label(self.parent, text = "Vĩ độ: ", font = (TEXT_FONT, TEXT_SMALL_SIZE))
-        self.latitudeLabel.place(x = 340, y = 480, anchor = "center")
+        self.latitudeLabel.place(x = 340, y = 500, anchor = "center")
         self.longitudeLabel = Label(self.parent, text = "Kinh độ: ", font = (TEXT_FONT, TEXT_SMALL_SIZE))
-        self.longitudeLabel.place(x = 680, y = 480, anchor = "center")
+        self.longitudeLabel.place(x = 680, y = 500, anchor = "center")
 
         # Image
         image = Image.open("./image/default.png").resize((IMAGE_WIDTH, IMAGE_HEIGHT))
         render = ImageTk.PhotoImage(image)
         self.teacherImage = Label(self.parent, image = render)
         self.teacherImage.image = render
-        self.teacherImage.place(x = 500, y = 60)
-        self.updateCamera()
+        self.teacherImage.place(x = 500, y = 80)
 
         # Notify
-        self.notifyLabel = Label(self.parent, text = "basldasldna;d", font = (TEXT_FONT, TEXT_SMALL_SIZE))
+        self.notifyLabel = Label(self.parent, text = "", font = (TEXT_FONT, TEXT_SMALL_SIZE))
         self.notifyLabel.place(x = 512, y = 540, anchor = "center")
         self.notifyLabel.configure(fg = COLOR_RED)
 
     # Update current time
-    def setCurrentTIme(self, time):
+    def setCurrentTime(self, time):
         self.currentTimeLabel.configure(text = time)
 
     # Teacher
@@ -123,7 +120,7 @@ class Display:
     
     # Student
     def setStudentName(self, name):
-        self.studentDistanceLabel.configure(text = name)
+        self.studentNameLabel.configure(text = name)
 
     def setStudentStart(self, start):
         self.studentStartLabel.configure(text = start)
@@ -142,22 +139,16 @@ class Display:
 
     # Location
     def setLocation(self, lat, lng):
-        self.latitudeLabel.configure(text = lat)
-        self.longitudeLabel.configure(text = lng)
+        self.latitudeLabel.configure(text = "Vĩ độ: " + lat)
+        self.longitudeLabel.configure(text = "Kinh độ: " + lng)
 
     # Notify
     def setNotify(self, notify):
         self.notifyLabel.configure(text = notify)
 
-    # Image
-    def updateCamera(self):
-        # Get a frame from the video source
-        ret, frame = self.cameraVideo.get_frame()
-
-        if ret:
-            image = Image.fromarray(frame).resize((IMAGE_WIDTH, IMAGE_HEIGHT))
-            render = ImageTk.PhotoImage(image)
-            self.teacherImage.configure(image = render)
-            self.teacherImage.image = render
-
-        self.parent.after(15, self.updateCamera)
+    # Show image
+    def showCamera(self, frame):
+        image = Image.fromarray(frame).resize((IMAGE_WIDTH, IMAGE_HEIGHT))
+        render = ImageTk.PhotoImage(image)
+        self.teacherImage.configure(image = render)
+        self.teacherImage.image = render
