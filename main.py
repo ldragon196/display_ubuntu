@@ -128,6 +128,7 @@ class Manage:
             # If face detected, show rectangles
             if len(self.faceRecs):
                 try:
+                    print("Detect " + len(self.faceRecs) + "faces")
                     for faceRec in self.faceRecs:
                         x1 = faceRec["left"]
                         y1 = faceRec["top"]
@@ -139,8 +140,12 @@ class Manage:
                             cv2.rectangle(frame, (x1, y1), (x2, y2), FACE_ERROR_COLOR, 2)
                 except:
                     self.faceRecs.clear()
+                    print("Face ractangle invalid")
+                    print(self.faceRecs)
             
             self.display.showCamera(frame)
+        else:
+            print("Cannot get camera frame")
 
         # Clear list after delay
         self.showRecsCount += 1
@@ -189,12 +194,13 @@ class Manage:
                         self.display.setTeacherTime("00:00:00")
                         self.display.setTeacherDistance("0")
                         self.display.setNotify("")
+                        print("Teacher checkin")
 
                     # Teacher checkout
                     else:
                         self.clearTeacherInfo()
                         self.clearStudentInfo()
-                        break
+                        print("Teacher checkout")
 
                 if person["type"] == "student":
                     # Teacher is checkout
@@ -215,21 +221,21 @@ class Manage:
                             self.display.setStudentLastDistance(str(self.studentLastDistance))
                             self.display.setStudentLastTime(str(self.studentLastTime))
                             self.display.setNotify("")
+
+                            # Send to verify id
+                            data_set = {"command":"update", "card_list":[str(card_id)], "numbs_card":1}
+                            json_mess = json.dumps(data_set)
+                            self.mqttClient.publish(FACE_VERIFY_TOPIC, json_mess)
+                            print("Student checkin")
                         
                         # Student checkout
                         else:
                             self.clearStudentInfo()
+                            print("Student checkout")
 
                     # Need a teacher before
                     else:
                         self.display.setNotify("Giảng viên cần check in trước")
-                        break
-
-                    # Send to verify id
-                    data_set = {"command":"update", "card_list":[str(card_id)], "numbs_card":1}
-                    json_mess = json.dumps(data_set)
-                    self.mqttClient.publish(FACE_VERIFY_TOPIC, json_mess)
-                    break
 
 #------------------ Run ------------------
 
@@ -277,7 +283,7 @@ topic: local/face_recognize
 topic: local/verify
 {
     "command":"update",
-    "card_list": [10477164, 59856274],
+    "card_list": ["10477164", "59856274"],
     "numbs_card": 2
 }
 
