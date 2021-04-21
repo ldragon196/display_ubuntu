@@ -123,17 +123,22 @@ class Manage:
         ret, frame = self.camera.get_frame()
 
         if ret:
+            self.camera.save_frame(frame)
+
             # If face detected, show rectangles
             if len(self.faceRecs):
-                for faceRec in self.faceRecs:
-                    x1 = faceRec["left"]
-                    y1 = faceRec["top"]
-                    x2 = faceRec["right"]
-                    y2 = faceRec["bottom"]
-                    if faceRec["persion_id"] == 1:
-                        cv2.rectangle(frame, (x1, y1), (x2, y2), FACE_OK_COLOR, 2)
-                    else:
-                        cv2.rectangle(frame, (x1, y1), (x2, y2), FACE_ERROR_COLOR, 2)
+                try:
+                    for faceRec in self.faceRecs:
+                        x1 = faceRec["left"]
+                        y1 = faceRec["top"]
+                        x2 = faceRec["right"]
+                        y2 = faceRec["bottom"]
+                        if faceRec["person_id"] == self.studentId:
+                            cv2.rectangle(frame, (x1, y1), (x2, y2), FACE_OK_COLOR, 2)
+                        else:
+                            cv2.rectangle(frame, (x1, y1), (x2, y2), FACE_ERROR_COLOR, 2)
+                except:
+                    self.faceRecs.clear()
             
             self.display.showCamera(frame)
 
@@ -141,7 +146,7 @@ class Manage:
         self.showRecsCount += 1
         if(self.showRecsCount > 5):
             self.faceRecs.clear()
-        
+
         # Loop
         self.display.parent.after(10, self.updateCamera)
 
@@ -220,14 +225,59 @@ class Manage:
                         self.display.setNotify("Giảng viên cần check in trước")
                         break
 
-                # Send to verify id
-                data_set = {"command":"update", "card_list":[str(card_id)], "numbs_card":1}
-                json_mess = json.dumps(data_set)
-                self.mqttClient.publish(FACE_VERIFY_TOPIC, json_mess)
-                break
+                    # Send to verify id
+                    data_set = {"command":"update", "card_id":card_id}
+                    json_mess = json.dumps(data_set)
+                    self.mqttClient.publish(FACE_VERIFY_TOPIC, json_mess)
+                    break
 
 #------------------ Run ------------------
 
 # Main
 manage = Manage()
 manage.display.mainloop()         # Blocks
+
+#-----------------------------------------
+"""
+topic: local/sensor/rfid
+{
+    "command":"update",
+    "card_id": 10477164
+}
+
+topic: local/sensor/gps
+{
+  "command":"update",
+  "latitude":21.039755217646018, 
+  "longitude":105.74732532739786,
+  "distance":2.0123
+}
+
+topic: local/face_recognize
+{
+  "command": "update",
+  "face_list": [
+    {
+      "person_id": 0,
+      "top": 0,
+      "bottom": 180,
+      "left": 0,
+      "right": 180
+    },
+    {
+      "person_id": 10477164,
+      "top": 100,
+      "bottom": 180,
+      "left": 200,
+      "right": 280 
+    }
+  ]
+}
+
+topic: local/verify
+{
+    "command":"update",
+    "card_id": 10477164
+}
+
+"""
