@@ -25,9 +25,9 @@ FACE_VERIFY_TOPIC              = "local/verify"
 
 # Person
 person1 = {"id" : 4182211, "name" : "Đỗ Hữu Thắng", "type" : "teacher", "last_s" : 0, "last_t": 0}
-person2 = {"id" : 2682792, "name" : "Lại Thế Hoàng", "type" : "teacher", "last_s" : 0, "last_t": 0}
+person2 = {"id" : 11025830, "name" : "Toàn Phương", "type" : "teacher", "last_s" : 0, "last_t": 0}
 person3 = {"id" : 10477164, "name" : "Vũ Hồng Dương", "type" : "student", "last_s" : 2440, "last_t": 183600}
-person4 = {"id" : 11025830, "name" : "Linh", "type" : "student", "last_s" : 1960, "last_t": 144060}
+person4 = {"id" : 2682792, "name" : "Lại Thế Hoàng", "type" : "student", "last_s" : 1960, "last_t": 144060}
 
 personList = [person1, person2, person3, person4]
 
@@ -128,7 +128,6 @@ class Manage:
             # If face detected, show rectangles
             if len(self.faceRecs):
                 try:
-                    print("Detect " + len(self.faceRecs) + "faces")
                     for faceRec in self.faceRecs:
                         x1 = faceRec["left"]
                         y1 = faceRec["top"]
@@ -139,9 +138,9 @@ class Manage:
                         else:
                             cv2.rectangle(frame, (x1, y1), (x2, y2), FACE_ERROR_COLOR, 2)
                 except:
-                    self.faceRecs.clear()
                     print("Face ractangle invalid")
                     print(self.faceRecs)
+                    self.faceRecs.clear()
             
             self.display.showCamera(frame)
         else:
