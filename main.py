@@ -226,7 +226,7 @@ class Manage:
                         break
 
                     # Send to verify id
-                    data_set = {"command":"update", "card_id":card_id}
+                    data_set = {"command":"update", "card_list":[str(card_id)], "numbs_card":1}
                     json_mess = json.dumps(data_set)
                     self.mqttClient.publish(FACE_VERIFY_TOPIC, json_mess)
                     break
@@ -277,7 +277,8 @@ topic: local/face_recognize
 topic: local/verify
 {
     "command":"update",
-    "card_id": 10477164
+    "card_list": [10477164, 59856274],
+    "numbs_card": 2
 }
 
 """
